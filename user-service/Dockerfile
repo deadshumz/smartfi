@@ -9,3 +9,4 @@ RUN pip install poetry
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction
     
+CMD alembic upgrade head
