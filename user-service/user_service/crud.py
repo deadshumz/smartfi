@@ -2,6 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import Sequence
 
+from sqlalchemy.orm.sync import update
+
 from . import schemas, models, security
 
 
@@ -32,3 +34,23 @@ async def get_user(db: AsyncSession, user_id: int) -> models.User | None:
 async def get_user_by_email(db: AsyncSession, email: str) -> models.User | None:
     result = await db.execute(select(models.User).where(models.User.email == email))
     return result.scalars().first()
+
+
+async def update_user(db: AsyncSession, user_id: int, user: schemas.UserUpdate) -> models.User:
+    if user.password:
+        hashed_password = security.get_password_hash(user.password)
+        user.password = hashed_password
+
+    db_user = await get_user(db, user_id)
+    if db_user is None:
+        raise ValueError("User not found")
+
+    stmt = (
+        update(models.User)
+        .where(models.User.id == user_id)
+        .values(user.model_dump())
+    )
+    await db.execute(stmt)
+    await db.commit()
+    await db.refresh(user)
+    return db_user
